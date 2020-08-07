@@ -213,6 +213,7 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 		t, err := s.LivepeerNode.Eth.GetTranscoder(s.LivepeerNode.Eth.Account().Address)
 		if err != nil {
 			glog.Error(err)
+			respondWith500(w, err.Error())
 			return
 		}
 
@@ -223,54 +224,54 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 
 		ok, err := s.LivepeerNode.Eth.CurrentRoundLocked()
 		if err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith500(w, err.Error())
 			return
 		}
 		if !ok {
-			respondWithError(w, "current round is locked", http.StatusInternalServerError)
+			respondWith500(w, "current round is locked")
 			return
 		}
 
 		if err := r.ParseForm(); err != nil {
-			respondWithError(w, fmt.Sprintf("Parse form error: %v", err), http.StatusInternalServerError)
+			respondWith400(w, fmt.Sprintf("Parse form error: %v", err))
 			return
 		}
 
 		blockRewardCutStr := r.FormValue("blockRewardCut")
 		if blockRewardCutStr == "" {
-			respondWithError(w, "Need to provide block reward cut", http.StatusBadRequest)
+			respondWith400(w, "Need to provide block reward cut")
 			return
 		}
 		blockRewardCut, err := strconv.ParseFloat(blockRewardCutStr, 64)
 		if err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith400(w, err.Error())
 			glog.Error(err)
 			return
 		}
 
 		feeShareStr := r.FormValue("feeShare")
 		if feeShareStr == "" {
-			respondWithError(w, "Need to provide fee share", http.StatusBadRequest)
+			respondWith400(w, "Need to provide fee share")
 			return
 		}
 		feeShare, err := strconv.ParseFloat(feeShareStr, 64)
 		if err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith400(w, err.Error())
 			return
 		}
 
 		if err := s.setOrchestratorPriceInfo(r.FormValue("pricePerUnit"), r.FormValue("pixelsPerUnit")); err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith400(w, err.Error())
 			return
 		}
 
 		serviceURI := r.FormValue("serviceURI")
 		if serviceURI == "" {
-			respondWithError(w, "Need to provide a service URI", http.StatusInternalServerError)
+			respondWith400(w, "Need to provide a service URI")
 			return
 		}
 		if _, err := url.ParseRequestURI(serviceURI); err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith400(w, err.Error())
 			return
 		}
 
@@ -278,7 +279,7 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 		if unbondingLockIDStr != "" {
 			unbondingLockID, err := lpcommon.ParseBigInt(unbondingLockIDStr)
 			if err != nil {
-				respondWithError(w, err.Error(), http.StatusInternalServerError)
+				respondWith400(w, err.Error())
 				return
 			}
 
@@ -286,13 +287,13 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 
 			tx, err := s.LivepeerNode.Eth.RebondFromUnbonded(s.LivepeerNode.Eth.Account().Address, unbondingLockID)
 			if err != nil {
-				respondWithError(w, err.Error(), http.StatusInternalServerError)
+				respondWith500(w, err.Error())
 				return
 			}
 
 			err = s.LivepeerNode.Eth.CheckTx(tx)
 			if err != nil {
-				respondWithError(w, err.Error(), http.StatusInternalServerError)
+				respondWith500(w, err.Error())
 				return
 			}
 		}
@@ -301,7 +302,7 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 		if amountStr != "" {
 			amount, err := lpcommon.ParseBigInt(amountStr)
 			if err != nil {
-				respondWithError(w, err.Error(), http.StatusInternalServerError)
+				respondWith400(w, err.Error())
 				return
 			}
 
@@ -310,13 +311,13 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 
 				tx, err := s.LivepeerNode.Eth.Bond(amount, s.LivepeerNode.Eth.Account().Address)
 				if err != nil {
-					respondWithError(w, err.Error(), http.StatusInternalServerError)
+					respondWith500(w, err.Error())
 					return
 				}
 
 				err = s.LivepeerNode.Eth.CheckTx(tx)
 				if err != nil {
-					respondWithError(w, err.Error(), http.StatusInternalServerError)
+					respondWith500(w, err.Error())
 					return
 				}
 			}
@@ -326,25 +327,25 @@ func (s *LivepeerServer) cliWebServerHandlers(bindAddr string) *http.ServeMux {
 
 		tx, err := s.LivepeerNode.Eth.Transcoder(eth.FromPerc(blockRewardCut), eth.FromPerc(feeShare))
 		if err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith500(w, err.Error())
 			return
 		}
 
 		err = s.LivepeerNode.Eth.CheckTx(tx)
 		if err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith500(w, err.Error())
 			return
 		}
 
 		currentServiceURI, err := s.LivepeerNode.Eth.GetServiceURI(s.LivepeerNode.Eth.Account().Address)
 		if err != nil {
-			respondWithError(w, err.Error(), http.StatusInternalServerError)
+			respondWith500(w, err.Error())
 			return
 		}
 
 		if currentServiceURI != serviceURI {
 			if err := s.setServiceURI(serviceURI); err != nil {
-				respondWithError(w, err.Error(), http.StatusInternalServerError)
+				respondWith500(w, err.Error())
 				return
 			}
 		}
