@@ -392,9 +392,21 @@ func TestTicketParams(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
+	// Test price = 0
+	params, err := r.TicketParams(sender, big.NewRat(0, 1))
+	assert.Nil(err)
+	assert.Equal(big.NewInt(0), params.FaceValue)
+	assert.Equal(big.NewInt(0), params.WinProb)
+
+	// Test price < 0
+	params, err = r.TicketParams(sender, big.NewRat(-1, 1))
+	assert.Nil(err)
+	assert.Equal(big.NewInt(0), params.FaceValue)
+	assert.Equal(big.NewInt(0), params.WinProb)
+
 	// Test SenderMonitor.MaxFloat() error
 	sm.maxFloatErr = errors.New("MaxFloat error")
-	_, err := r.TicketParams(sender, big.NewRat(1, 1))
+	_, err = r.TicketParams(sender, big.NewRat(1, 1))
 	assert.EqualError(err, sm.maxFloatErr.Error())
 
 	// Test correct params returned when default faceValue < maxFloat
@@ -520,13 +532,14 @@ func TestTxCostMultiplier_UsingFaceValue_ReturnsDefaultMultiplier(t *testing.T) 
 	secret := [32]byte{3}
 	r := NewRecipientWithSecret(recipient, b, v, gm, sm, tm, secret, cfg)
 
-	mul, err := r.TxCostMultiplier(sender)
-	assert.Nil(t, err)
+	params, err := r.TicketParams(sender, big.NewRat(1, 1))
+	require.Nil(t, err)
+	mul := r.TxCostMultiplier(params.FaceValue)
 	assert.Equal(t, big.NewRat(int64(cfg.TxCostMultiplier), 1), mul)
 }
 
 func TestTxCostMultiplier_UsingMaxFloat_ReturnsScaledMultiplier(t *testing.T) {
-	sender, b, v, gm, sm, tm, cfg, _ := newRecipientFixtureOrFatal(t)
+	_, b, v, gm, sm, tm, cfg, _ := newRecipientFixtureOrFatal(t)
 	recipient := RandAddress()
 	secret := [32]byte{3}
 	r := NewRecipientWithSecret(recipient, b, v, gm, sm, tm, secret, cfg)
@@ -536,34 +549,8 @@ func TestTxCostMultiplier_UsingMaxFloat_ReturnsScaledMultiplier(t *testing.T) {
 	txCost := new(big.Int).Mul(gm.gasPrice, big.NewInt(int64(cfg.RedeemGas)))
 	expMul := new(big.Rat).SetFrac(sm.maxFloat, txCost)
 
-	mul, err := r.TxCostMultiplier(sender)
-	assert.Nil(t, err)
+	mul := r.TxCostMultiplier(sm.maxFloat)
 	assert.Equal(t, expMul, mul)
-}
-
-func TestTxCostMultiplier_MaxFloatError_ReturnsError(t *testing.T) {
-	sender, b, v, gm, sm, tm, cfg, _ := newRecipientFixtureOrFatal(t)
-	recipient := RandAddress()
-	secret := [32]byte{3}
-	r := NewRecipientWithSecret(recipient, b, v, gm, sm, tm, secret, cfg)
-
-	sm.maxFloatErr = errors.New("MaxFloat error")
-	mul, err := r.TxCostMultiplier(sender)
-	assert.Nil(t, mul)
-	assert.EqualError(t, err, sm.maxFloatErr.Error())
-}
-
-func TestTxCostMultiplier_InsufficientReserve_ReturnsError(t *testing.T) {
-	sender, b, v, gm, sm, tm, cfg, _ := newRecipientFixtureOrFatal(t)
-	recipient := RandAddress()
-	secret := [32]byte{3}
-	r := NewRecipientWithSecret(recipient, b, v, gm, sm, tm, secret, cfg)
-
-	sm.maxFloat = big.NewInt(0) // Set maxFloat to some value less than EV
-
-	mul, err := r.TxCostMultiplier(sender)
-	assert.Nil(t, mul)
-	assert.EqualError(t, err, errInsufficientSenderReserve.Error())
 }
 
 func TestSenderNoncesCleanupLoop(t *testing.T) {

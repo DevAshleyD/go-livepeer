@@ -269,13 +269,20 @@ func (orch *orchestrator) PriceInfo(sender ethcommon.Address) (*net.PriceInfo, e
 
 // priceInfo returns price per pixel as a fixed point number wrapped in a big.Rat
 func (orch *orchestrator) priceInfo(sender ethcommon.Address) (*big.Rat, error) {
-	txCostMultiplier, err := orch.node.Recipient.TxCostMultiplier(sender)
+	basePrice := orch.node.GetBasePrice()
+	// We can pass in basePrice (not scaled by the tx cost multiplier) here because we just care about the faceValue.
+	params, err := orch.node.Recipient.TicketParams(sender, basePrice)
 	if err != nil {
 		return nil, err
 	}
-	// pricePerPixel = basePrice * (1 + 1/ txCostMultiplier)
-	overhead := new(big.Rat).Add(big.NewRat(1, 1), new(big.Rat).Inv(txCostMultiplier))
-	fixedPrice, err := common.PriceToFixed(new(big.Rat).Mul(orch.node.GetBasePrice(), overhead))
+	txCostMultiplier := orch.node.Recipient.TxCostMultiplier(params.FaceValue)
+	// pricePerPixel = basePrice * (1 + 1 / txCostMultiplier)
+	overhead := big.NewRat(1, 1)
+	// No overhead if txCostMultiplier = 0
+	if txCostMultiplier.Num().Cmp(big.NewInt(0)) > 0 {
+		overhead.Add(overhead, new(big.Rat).Inv(txCostMultiplier))
+	}
+	fixedPrice, err := common.PriceToFixed(new(big.Rat).Mul(basePrice, overhead))
 	if err != nil {
 		return nil, err
 	}

@@ -460,14 +460,14 @@ func (m *MockRecipient) TicketParams(sender ethcommon.Address, price *big.Rat) (
 	return params, args.Error(1)
 }
 
-// TxCostMultiplier returns the transaction cost multiplier for a sender based on sender's MaxFloat
-func (m *MockRecipient) TxCostMultiplier(sender ethcommon.Address) (*big.Rat, error) {
-	args := m.Called(sender)
+// TxCostMultiplier returns the transaction cost multiplier based on the given faceValue
+func (m *MockRecipient) TxCostMultiplier(faceValue *big.Int) *big.Rat {
+	args := m.Called(faceValue)
 	var multiplier *big.Rat
 	if args.Get(0) != nil {
 		multiplier = args.Get(0).(*big.Rat)
 	}
-	return multiplier, args.Error(1)
+	return multiplier
 }
 
 // EV Returns the recipient's request ticket EV

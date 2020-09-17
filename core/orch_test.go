@@ -1295,7 +1295,9 @@ func TestPriceInfo(t *testing.T) {
 
 	recipient := new(pm.MockRecipient)
 	n.Recipient = recipient
-	recipient.On("TxCostMultiplier", mock.Anything).Return(txMultiplier, nil)
+	params := &pm.TicketParams{FaceValue: big.NewInt(1)}
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(params, nil)
+	recipient.On("TxCostMultiplier", params.FaceValue).Return(txMultiplier)
 	orch := NewOrchestrator(n, nil)
 
 	priceInfo, err := orch.PriceInfo(ethcommon.Address{})
@@ -1357,7 +1359,8 @@ func TestPriceInfo(t *testing.T) {
 	n.SetBasePrice(basePrice)
 	recipient = new(pm.MockRecipient)
 	n.Recipient = recipient
-	recipient.On("TxCostMultiplier", mock.Anything).Return(txMultiplier, nil)
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(params, nil)
+	recipient.On("TxCostMultiplier", params.FaceValue).Return(txMultiplier, nil)
 	orch = NewOrchestrator(n, nil)
 	expPricePerPixel = big.NewRat(11, 1)
 
@@ -1376,7 +1379,8 @@ func TestPriceInfo(t *testing.T) {
 	n.SetBasePrice(basePrice)
 	recipient = new(pm.MockRecipient)
 	n.Recipient = recipient
-	recipient.On("TxCostMultiplier", mock.Anything).Return(txMultiplier, nil)
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(params, nil)
+	recipient.On("TxCostMultiplier", params.FaceValue).Return(txMultiplier, nil)
 	orch = NewOrchestrator(n, nil)
 	expPricePerPixel = big.NewRat(1100, 10)
 
@@ -1395,7 +1399,8 @@ func TestPriceInfo(t *testing.T) {
 	n.SetBasePrice(basePrice)
 	recipient = new(pm.MockRecipient)
 	n.Recipient = recipient
-	recipient.On("TxCostMultiplier", mock.Anything).Return(txMultiplier, nil)
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(params, nil)
+	recipient.On("TxCostMultiplier", params.FaceValue).Return(txMultiplier, nil)
 	orch = NewOrchestrator(n, nil)
 	expPricePerPixel = big.NewRat(20, 1)
 
@@ -1408,6 +1413,27 @@ func TestPriceInfo(t *testing.T) {
 	assert.Equal(priceInfo.PricePerUnit, expPrice.Num().Int64())
 	assert.Equal(priceInfo.PixelsPerUnit, expPrice.Denom().Int64())
 
+	// basePrice = 10, txMultiplier = 0 => expPricePerPixel = 10
+	recipient = new(pm.MockRecipient)
+	n.Recipient = recipient
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(params, nil)
+	recipient.On("TxCostMultiplier", params.FaceValue).Return(big.NewRat(0, 100), nil)
+	orch = NewOrchestrator(n, nil)
+
+	priceInfo, err = orch.PriceInfo(ethcommon.Address{})
+	assert.Nil(err)
+	assert.Equal(int64(10), priceInfo.PricePerUnit)
+	assert.Equal(int64(1), priceInfo.PixelsPerUnit)
+
+	// basePrice = 0, txMultiplier = 0 => expPricePerPixel = 0
+	n.SetBasePrice(big.NewRat(0, 1))
+	orch = NewOrchestrator(n, nil)
+
+	priceInfo, err = orch.PriceInfo(ethcommon.Address{})
+	assert.Nil(err)
+	assert.Zero(priceInfo.PricePerUnit)
+	assert.Equal(int64(1), priceInfo.PixelsPerUnit)
+
 	// test no overflows
 	basePrice = big.NewRat(25000, 1)
 	n.SetBasePrice(basePrice)
@@ -1416,7 +1442,8 @@ func TestPriceInfo(t *testing.T) {
 	txMultiplier = new(big.Rat).SetFrac(faceValue, txCost) // 926899968213313/31250000000000
 	recipient = new(pm.MockRecipient)
 	n.Recipient = recipient
-	recipient.On("TxCostMultiplier", mock.Anything).Return(txMultiplier, nil)
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(params, nil)
+	recipient.On("TxCostMultiplier", params.FaceValue).Return(txMultiplier, nil)
 	orch = NewOrchestrator(n, nil)
 	overhead := new(big.Rat).Add(big.NewRat(1, 1), new(big.Rat).Inv(txMultiplier))
 	expPricePerPixel = new(big.Rat).Mul(basePrice, overhead) // 23953749205332825000/926899968213313
@@ -1452,13 +1479,13 @@ func TestPriceInfo_GivenNilRecipient_ReturnsNilError(t *testing.T) {
 	assert.Nil(t, priceInfo)
 }
 
-func TestPriceInfo_TxMultiplierError_ReturnsError(t *testing.T) {
-	expError := errors.New("TxMultiplier Error")
+func TestPriceInfo_TicketParamsError_ReturnsError(t *testing.T) {
+	expError := errors.New("TicketParams Error")
 
 	n, _ := NewLivepeerNode(nil, "", nil)
 	recipient := new(pm.MockRecipient)
 	n.Recipient = recipient
-	recipient.On("TxCostMultiplier", mock.Anything).Return(nil, expError)
+	recipient.On("TicketParams", mock.Anything, mock.Anything).Return(nil, expError)
 	orch := NewOrchestrator(n, nil)
 
 	priceInfo, err := orch.PriceInfo(ethcommon.Address{})
