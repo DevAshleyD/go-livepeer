@@ -128,14 +128,7 @@ else
     [ ! -d  "$CUSTOM_DATADIR"/rinkeby ] # sanity check that network isn't included
     kill $pid
 
-    # Orchestrator needs to explicitly set PricePerUnit otherwise it will default to 0 resulting in a fatal error
-    res=0
-    $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -network rinkeby $ETH_ARGS || res=$?
-    [ $res -ne 0 ]
-    # Orchestrator needs PricePerUnit > 0 
-    res=0
-    $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -pricePerUnit 0 -network rinkeby $ETH_ARGS || res=$?
-    [ $res -ne 0 ]
+    # Orchestrator needs PricePerUnit >= 0 
     res=0
     $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -pricePerUnit -5 -network rinkeby $ETH_ARGS || res=$?
     [ $res -ne 0 ]
