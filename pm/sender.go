@@ -86,14 +86,6 @@ func (s *sender) validateSender(info *SenderInfo) error {
 		return ErrSenderValidation{fmt.Errorf("unable to validate sender: deposit and reserve is set to unlock soon")}
 	}
 
-	if info.Reserve.FundsRemaining.Cmp(big.NewInt(0)) == 0 {
-		return ErrSenderValidation{errors.New("no sender reserve")}
-	}
-
-	if info.Deposit.Cmp(big.NewInt(0)) == 0 {
-		return ErrSenderValidation{errors.New("no sender deposit")}
-	}
-
 	return nil
 }
 
