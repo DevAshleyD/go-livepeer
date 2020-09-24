@@ -146,6 +146,25 @@ func TestSender_ValidateSender(t *testing.T) {
 	require.Nil(err)
 	err = s.validateSender(info)
 	assert.NoError(err)
+
+	// No reserve
+	sm.info[account.Address].Reserve.FundsRemaining = big.NewInt(0)
+	info, err = s.senderManager.GetSenderInfo(s.signer.Account().Address)
+	require.Nil(err)
+	err = s.validateSender(info)
+	assert.EqualError(err, "no sender reserve")
+	_, ok = err.(ErrSenderValidation)
+	assert.True(ok)
+	sm.info[account.Address].Reserve.FundsRemaining = big.NewInt(100)
+
+	// No deposit
+	sm.info[account.Address].Deposit = big.NewInt(0)
+	info, err = s.senderManager.GetSenderInfo(s.signer.Account().Address)
+	require.Nil(err)
+	err = s.validateSender(info)
+	assert.EqualError(err, "no sender deposit")
+	_, ok = err.(ErrSenderValidation)
+	assert.True(ok)
 }
 
 func TestCreateTicketBatch_NonExistantSession_ReturnsError(t *testing.T) {
@@ -203,8 +222,12 @@ func TestCreateTicketBatch_FaceValueTooHigh_ReturnsError(t *testing.T) {
 	ticketParams := defaultTicketParams(t, RandAddress())
 	ticketParams.FaceValue = big.NewInt(1111)
 	sessionID := sender.StartSession(ticketParams)
-	expErrStr := maxFaceValueErrStr(ticketParams.FaceValue, big.NewInt(0))
 	_, err := sender.CreateTicketBatch(sessionID, 1)
+	assert.EqualError(err, "no sender deposit")
+
+	sm.info[senderAddr].Deposit = big.NewInt(1)
+	expErrStr := maxFaceValueErrStr(ticketParams.FaceValue, big.NewInt(0))
+	_, err = sender.CreateTicketBatch(sessionID, 1)
 	assert.EqualError(err, expErrStr)
 
 	sm.info[senderAddr].Deposit = big.NewInt(2224)
@@ -430,9 +453,8 @@ func TestValidateTicketParams_FaceValueTooHigh_ReturnsError(t *testing.T) {
 		FaceValue: big.NewInt(1111),
 		WinProb:   big.NewInt(2222),
 	}
-	expErrStr := maxFaceValueErrStr(ticketParams.FaceValue, big.NewInt(0))
 	err := sender.ValidateTicketParams(ticketParams)
-	assert.EqualError(err, expErrStr)
+	assert.EqualError(err, "no sender deposit")
 
 	// Test when deposit / depositMultiplier < faceValue
 	sm.info[senderAddr].Deposit = big.NewInt(300)
@@ -441,7 +463,7 @@ func TestValidateTicketParams_FaceValueTooHigh_ReturnsError(t *testing.T) {
 	maxFaceValue := new(big.Int).Div(sm.info[senderAddr].Deposit, big.NewInt(int64(sender.depositMultiplier)))
 
 	ticketParams.FaceValue = new(big.Int).Add(maxFaceValue, big.NewInt(1))
-	expErrStr = maxFaceValueErrStr(ticketParams.FaceValue, maxFaceValue)
+	expErrStr := maxFaceValueErrStr(ticketParams.FaceValue, maxFaceValue)
 	err = sender.ValidateTicketParams(ticketParams)
 	assert.EqualError(err, expErrStr)
 }
