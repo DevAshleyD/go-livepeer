@@ -520,7 +520,7 @@ func main() {
 				panic(fmt.Errorf("-pricePerUnit must be set"))
 			}
 			if *pricePerUnit < 0 {
-				panic(fmt.Errorf("-pricePerUnit must be > 0, provided %d", *pricePerUnit))
+				panic(fmt.Errorf("-pricePerUnit must be >= 0, provided %d", *pricePerUnit))
 			}
 			n.SetBasePrice(big.NewRat(int64(*pricePerUnit), int64(*pixelsPerUnit)))
 			glog.Infof("Price: %d wei for %d pixels\n ", *pricePerUnit, *pixelsPerUnit)
