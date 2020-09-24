@@ -36,8 +36,8 @@ type Recipient interface {
 	// for a provided sender ETH adddress
 	TicketParams(sender ethcommon.Address, price *big.Rat) (*TicketParams, error)
 
-	// TxCostMultiplier returns the tx cost multiplier based on the provide face value
-	TxCostMultiplier(faceValue *big.Int) *big.Rat
+	// TxCostMultiplier returns the multiplier -
+	TxCostMultiplier(sender ethcommon.Address) (*big.Rat, error)
 
 	// EV returns the recipients EV requirement for a ticket as configured on startup
 	EV() *big.Rat
@@ -179,7 +179,7 @@ func (r *recipient) TicketParams(sender ethcommon.Address, price *big.Rat) (*Tic
 
 	seed := new(big.Int).SetBytes(randBytes)
 
-	faceValue, err := r.faceValue(sender, price)
+	faceValue, err := r.faceValue(sender)
 	if err != nil {
 		return nil, err
 	}
@@ -216,12 +216,7 @@ func (r *recipient) txCost() *big.Int {
 	return new(big.Int).Mul(big.NewInt(int64(r.cfg.RedeemGas)), gasPrice)
 }
 
-func (r *recipient) faceValue(sender ethcommon.Address, price *big.Rat) (*big.Int, error) {
-	// If price is 0 then face value, win prob and EV are 0 because no payments are required
-	if price.Num().Cmp(big.NewInt(0)) <= 0 {
-		return big.NewInt(0), nil
-	}
-
+func (r *recipient) faceValue(sender ethcommon.Address) (*big.Int, error) {
 	// faceValue = txCost * txCostMultiplier
 	faceValue := new(big.Int).Mul(r.txCost(), big.NewInt(int64(r.cfg.TxCostMultiplier)))
 
@@ -275,11 +270,18 @@ func (r *recipient) winProb(faceValue *big.Int) *big.Int {
 	return new(big.Int).Mul(r.cfg.EV, x)
 }
 
-func (r *recipient) TxCostMultiplier(faceValue *big.Int) *big.Rat {
+func (r *recipient) TxCostMultiplier(sender ethcommon.Address) (*big.Rat, error) {
+	// 'r.faceValue(sender)' will return min(defaultFaceValue, MaxFloat(sender))
+	faceValue, err := r.faceValue(sender)
+
+	if err != nil {
+		return nil, err
+	}
+
 	// defaultTxCostMultiplier = defaultFaceValue / txCost
 	// Replacing defaultFaceValue with min(defaultFaceValue, MaxFloat(sender))
 	// Will scale the TxCostMultiplier according to the effective faceValue
-	return new(big.Rat).SetFrac(faceValue, r.txCost())
+	return new(big.Rat).SetFrac(faceValue, r.txCost()), nil
 }
 
 func (r *recipient) rand(seed *big.Int, sender ethcommon.Address, faceValue *big.Int, winProb *big.Int, expirationBlock *big.Int, price *big.Rat, ticketExpirationParams *TicketExpirationParams) *big.Int {
