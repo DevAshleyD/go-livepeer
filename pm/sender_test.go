@@ -221,6 +221,7 @@ func TestCreateTicketBatch_FaceValueTooHigh_ReturnsError(t *testing.T) {
 
 	ticketParams := defaultTicketParams(t, RandAddress())
 	ticketParams.FaceValue = big.NewInt(1111)
+	ticketParams.WinProb = big.NewInt(100)
 	sessionID := sender.StartSession(ticketParams)
 	_, err := sender.CreateTicketBatch(sessionID, 1)
 	assert.EqualError(err, "no sender deposit")
@@ -425,6 +426,20 @@ func TestCreateTicketBatch_ConcurrentCallsForSameSession_SenderNonceIncrementsCo
 	}
 
 	assert.Equal(totalTickets, len(uniqueNonces))
+}
+
+func TestValidateParams_ValidateSender(t *testing.T) {
+	sender := defaultSender(t)
+	sm := sender.senderManager.(*stubSenderManager)
+	sm.info[sender.signer.Account().Address].Deposit = big.NewInt(0)
+
+	// Check when ticket EV = 0
+	params := &TicketParams{FaceValue: big.NewInt(0), WinProb: big.NewInt(0), ExpirationBlock: big.NewInt(0)}
+	assert.Nil(t, sender.ValidateTicketParams(params))
+
+	// Check when ticket EV > 0
+	params = &TicketParams{FaceValue: big.NewInt(100), WinProb: big.NewInt(100)}
+	assert.EqualError(t, sender.ValidateTicketParams(params), "no sender deposit")
 }
 
 func TestValidateTicketParams_EVTooHigh_ReturnsError(t *testing.T) {

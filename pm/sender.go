@@ -151,12 +151,14 @@ func (s *sender) validateTicketParams(ticketParams *TicketParams, numTickets int
 		return err
 	}
 
+	ev := ticketEV(ticketParams.FaceValue, ticketParams.WinProb)
 	// validate sender
-	if err := s.validateSender(info); err != nil {
-		return err
+	if ev.Cmp(big.NewRat(0, 1)) > 0 {
+		if err := s.validateSender(info); err != nil {
+			return err
+		}
 	}
 
-	ev := ticketEV(ticketParams.FaceValue, ticketParams.WinProb)
 	totalEV := ev.Mul(ev, new(big.Rat).SetInt64(int64(numTickets)))
 	if totalEV.Cmp(s.maxEV) > 0 {
 		return fmt.Errorf("total ticket EV %v for %v tickets > max total ticket EV %v", totalEV.FloatString(5), numTickets, s.maxEV.FloatString(5))
