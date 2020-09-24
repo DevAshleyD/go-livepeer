@@ -133,7 +133,7 @@ else
     # Check that -pricePerUnit needs to be set
     $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -s3bucket abc -network rinkeby $ETH_ARGS 2>&1 | grep -e "-pricePerUnit must be set"
     # Orchestrator needs PricePerUnit > 0 
-    $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -s3bucket abc -pricePerUnit -5 -network rinkeby $ETH_ARGS 2>&1 | grep -e "-pricePerUnit must be > 0, provided -5"
+    $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -s3bucket abc -pricePerUnit -5 -network rinkeby $ETH_ARGS 2>&1 | grep -e "-pricePerUnit must be >= 0, provided -5"
     # Orchestrator needs PixelsPerUnit > 0
     $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -s3bucket abc -pixelsPerUnit 0 -pricePerUnit 5 -network rinkeby $ETH_ARGS 2>&1 | grep -e "-pixelsPerUnit must be > 0, provided 0"
     $TMPDIR/livepeer -orchestrator -serviceAddr 127.0.0.1:8935 -transcoder -s3bucket abc -pixelsPerUnit -5 -pricePerUnit 5 -network rinkeby $ETH_ARGS 2>&1 | grep -e "-pixelsPerUnit must be > 0, provided -5"
